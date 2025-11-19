@@ -136,7 +136,7 @@ const Index = () => {
         {!showResult ? (
           <div className="animate-fade-in">
             <div className="text-center mb-12">
-              <h1 className="font-heading sm:text-5xl font-bold text-gray-900 mb-3 text-4xl">Оценить возможность постановки на учет граждан в качестве нуждающихся в жилых помещениях, предоставляемых 
+              <h1 className="font-heading sm:text-5xl font-bold text-gray-900 mb-3 text-3xl">Оценить возможность постановки на учет граждан в качестве нуждающихся в жилых помещениях, предоставляемых 
 по договорам социального найма (жилищный учет)</h1>
               <p className="font-body text-gray-500 text-lg">Ответьте на вопрос ниже, пожалуйста</p>
             </div>

@@ -11,12 +11,12 @@
       "bodyMatcher": "partial"
     },
     {
-      "name": "Get result rules",
+      "name": "Get result patterns",
       "method": "GET",
-      "path": "/?type=rules",
+      "path": "/?type=patterns",
       "expectedStatus": 200,
       "expectedBody": {
-        "rules": "array"
+        "patterns": "array"
       },
       "bodyMatcher": "partial"
     }

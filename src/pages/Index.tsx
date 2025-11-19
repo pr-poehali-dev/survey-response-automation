@@ -11,28 +11,35 @@ interface Question {
   position: number;
 }
 
-interface ResultRule {
+interface ResultPattern {
   id: number;
-  minYes: number;
-  maxYes: number;
   resultText: string;
+  answerPattern: Record<string, boolean>;
+  priority: number;
 }
 
-const getResult = (answers: Record<number, boolean>, rules: ResultRule[]): string => {
-  const yesCount = Object.values(answers).filter(Boolean).length;
-  
-  for (const rule of rules) {
-    if (yesCount >= rule.minYes && yesCount <= rule.maxYes) {
-      return rule.resultText;
+const getResult = (answers: Record<number, boolean>, patterns: ResultPattern[]): string => {
+  for (const pattern of patterns) {
+    if (Object.keys(pattern.answerPattern).length === 0) {
+      continue;
+    }
+    
+    const matches = Object.entries(pattern.answerPattern).every(([qId, expectedAnswer]) => {
+      return answers[parseInt(qId)] === expectedAnswer;
+    });
+    
+    if (matches) {
+      return pattern.resultText;
     }
   }
   
-  return 'Спасибо за прохождение опросника!';
+  const defaultPattern = patterns.find(p => Object.keys(p.answerPattern).length === 0);
+  return defaultPattern?.resultText || 'Спасибо за прохождение опросника!';
 };
 
 const Index = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [rules, setRules] = useState<ResultRule[]>([]);
+  const [patterns, setPatterns] = useState<ResultPattern[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, boolean>>({});
   const [showResult, setShowResult] = useState(false);
@@ -44,16 +51,16 @@ const Index = () => {
 
   const loadData = async () => {
     try {
-      const [questionsRes, rulesRes] = await Promise.all([
+      const [questionsRes, patternsRes] = await Promise.all([
         fetch(`${API_URL}?type=questions`),
-        fetch(`${API_URL}?type=rules`)
+        fetch(`${API_URL}?type=patterns`)
       ]);
       
       const questionsData = await questionsRes.json();
-      const rulesData = await rulesRes.json();
+      const patternsData = await patternsRes.json();
       
       setQuestions(questionsData.questions || []);
-      setRules(rulesData.rules || []);
+      setPatterns(patternsData.patterns || []);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -185,7 +192,7 @@ const Index = () => {
 
             <Card className="p-8 sm:p-12 shadow-lg border-0">
               <p className="font-body text-xl text-gray-700 leading-relaxed mb-8 text-center">
-                {getResult(answers, rules)}
+                {getResult(answers, patterns)}
               </p>
 
               <div className="flex justify-center">

@@ -1,6 +1,7 @@
 import json
 import os
 import psycopg2
+import psycopg2.extras
 from typing import Dict, Any
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -32,15 +33,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             params = event.get('queryStringParameters') or {}
             resource_type = params.get('type', 'questions')
             
-            if resource_type == 'rules':
-                cur.execute('SELECT id, min_yes, max_yes, result_text FROM result_rules ORDER BY min_yes DESC')
-                rules = []
+            if resource_type == 'patterns':
+                cur.execute('SELECT id, result_text, answer_pattern, priority FROM result_patterns ORDER BY priority')
+                patterns = []
                 for row in cur.fetchall():
-                    rules.append({
+                    patterns.append({
                         'id': row[0],
-                        'minYes': row[1],
-                        'maxYes': row[2],
-                        'resultText': row[3]
+                        'resultText': row[1],
+                        'answerPattern': row[2],
+                        'priority': row[3]
                     })
                 
                 return {
@@ -50,7 +51,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         'Access-Control-Allow-Origin': '*'
                     },
                     'isBase64Encoded': False,
-                    'body': json.dumps({'rules': rules})
+                    'body': json.dumps({'patterns': patterns})
                 }
             else:
                 cur.execute('SELECT id, text, position FROM questions ORDER BY position')
@@ -76,16 +77,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body_data = json.loads(event.get('body', '{}'))
             resource_type = body_data.get('type', 'question')
             
-            if resource_type == 'rule':
-                min_yes = body_data['minYes']
-                max_yes = body_data['maxYes']
+            if resource_type == 'pattern':
                 result_text = body_data['resultText']
+                answer_pattern = json.dumps(body_data['answerPattern'])
+                priority = body_data.get('priority', 0)
                 
                 cur.execute(
-                    'INSERT INTO result_rules (min_yes, max_yes, result_text) VALUES (%s, %s, %s) RETURNING id',
-                    (min_yes, max_yes, result_text)
+                    'INSERT INTO result_patterns (result_text, answer_pattern, priority) VALUES (%s, %s, %s) RETURNING id',
+                    (result_text, answer_pattern, priority)
                 )
-                rule_id = cur.fetchone()[0]
+                pattern_id = cur.fetchone()[0]
                 conn.commit()
                 
                 return {
@@ -95,7 +96,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         'Access-Control-Allow-Origin': '*'
                     },
                     'isBase64Encoded': False,
-                    'body': json.dumps({'id': rule_id, 'success': True})
+                    'body': json.dumps({'id': pattern_id, 'success': True})
                 }
             else:
                 text = body_data['text']
@@ -123,15 +124,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body_data = json.loads(event.get('body', '{}'))
             resource_type = body_data.get('type', 'question')
             
-            if resource_type == 'rule':
-                rule_id = body_data['id']
-                min_yes = body_data['minYes']
-                max_yes = body_data['maxYes']
+            if resource_type == 'pattern':
+                pattern_id = body_data['id']
                 result_text = body_data['resultText']
+                answer_pattern = json.dumps(body_data['answerPattern'])
+                priority = body_data.get('priority', 0)
                 
                 cur.execute(
-                    'UPDATE result_rules SET min_yes = %s, max_yes = %s, result_text = %s WHERE id = %s',
-                    (min_yes, max_yes, result_text, rule_id)
+                    'UPDATE result_patterns SET result_text = %s, answer_pattern = %s, priority = %s WHERE id = %s',
+                    (result_text, answer_pattern, priority, pattern_id)
                 )
                 conn.commit()
                 
@@ -166,9 +167,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         elif method == 'DELETE':
             params = event.get('queryStringParameters', {})
-            question_id = int(params.get('id', 0))
+            resource_type = params.get('type', 'question')
+            resource_id = int(params.get('id', 0))
             
-            cur.execute('DELETE FROM questions WHERE id = %s', (question_id,))
+            if resource_type == 'pattern':
+                cur.execute('DELETE FROM result_patterns WHERE id = %s', (resource_id,))
+            else:
+                cur.execute('DELETE FROM questions WHERE id = %s', (resource_id,))
+            
             conn.commit()
             
             return {

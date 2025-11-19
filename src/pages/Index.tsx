@@ -1,39 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import Icon from '@/components/ui/icon';
 
+const API_URL = 'https://functions.poehali.dev/c76d76bf-8700-499d-ad27-e18742053256';
+
 interface Question {
   id: number;
   text: string;
+  position: number;
 }
 
-const questions: Question[] = [
-  { id: 1, text: 'Вы любите работать в команде?' },
-  { id: 2, text: 'Вам нравится решать сложные задачи?' },
-  { id: 3, text: 'Вы предпочитаете планировать заранее?' },
-  { id: 4, text: 'Вы легко адаптируетесь к изменениям?' },
-  { id: 5, text: 'Вам важна обратная связь от других?' },
-];
+interface ResultRule {
+  id: number;
+  minYes: number;
+  maxYes: number;
+  resultText: string;
+}
 
-const getResult = (answers: Record<number, boolean>): string => {
+const getResult = (answers: Record<number, boolean>, rules: ResultRule[]): string => {
   const yesCount = Object.values(answers).filter(Boolean).length;
   
-  if (yesCount === 5) {
-    return 'Вы прирожденный лидер! У вас отличные навыки коммуникации и адаптации. Вы умеете работать в команде и находить решения в любых ситуациях.';
-  } else if (yesCount >= 3) {
-    return 'Вы сбалансированная личность! Вы гибки в подходах и умеете находить компромиссы. У вас есть потенциал для роста в разных направлениях.';
-  } else if (yesCount >= 1) {
-    return 'Вы индивидуалист! Вы цените самостоятельность и предпочитаете работать в своем темпе. Это ценное качество для глубокой концентрации на задачах.';
-  } else {
-    return 'Вы независимый мыслитель! Вы идете своим путем и не боитесь быть уникальным. Ваша самодостаточность — ваша сила.';
+  for (const rule of rules) {
+    if (yesCount >= rule.minYes && yesCount <= rule.maxYes) {
+      return rule.resultText;
+    }
   }
+  
+  return 'Спасибо за прохождение опросника!';
 };
 
 const Index = () => {
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [rules, setRules] = useState<ResultRule[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, boolean>>({});
   const [showResult, setShowResult] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const [questionsRes, rulesRes] = await Promise.all([
+        fetch(`${API_URL}?type=questions`),
+        fetch(`${API_URL}?type=rules`)
+      ]);
+      
+      const questionsData = await questionsRes.json();
+      const rulesData = await rulesRes.json();
+      
+      setQuestions(questionsData.questions || []);
+      setRules(rulesData.rules || []);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAnswer = (answer: boolean) => {
     const newAnswers = { ...answers, [questions[currentQuestion].id]: answer };
@@ -56,9 +82,50 @@ const Index = () => {
     setShowResult(false);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin">
+          <Icon name="Loader2" size={40} className="text-primary" />
+        </div>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="text-center">
+          <Icon name="AlertCircle" size={48} className="text-gray-400 mx-auto mb-4" />
+          <h2 className="font-heading text-2xl font-bold text-gray-900 mb-2">
+            Нет вопросов
+          </h2>
+          <p className="font-body text-gray-500 mb-6">
+            Добавьте вопросы в панели управления
+          </p>
+          <Button onClick={() => window.location.href = '/admin'} className="font-body">
+            <Icon name="Settings" className="mr-2" size={18} />
+            Открыть панель
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-2xl">
+        <div className="absolute top-4 right-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.location.href = '/admin'}
+            className="font-body"
+          >
+            <Icon name="Settings" size={18} />
+          </Button>
+        </div>
+
         {!showResult ? (
           <div className="animate-fade-in">
             <div className="text-center mb-12">
@@ -118,7 +185,7 @@ const Index = () => {
 
             <Card className="p-8 sm:p-12 shadow-lg border-0">
               <p className="font-body text-xl text-gray-700 leading-relaxed mb-8 text-center">
-                {getResult(answers)}
+                {getResult(answers, rules)}
               </p>
 
               <div className="flex justify-center">
@@ -135,7 +202,7 @@ const Index = () => {
             </Card>
 
             <div className="mt-8 text-center">
-              <div className="inline-flex items-center gap-8 text-sm text-gray-400 font-body">
+              <div className="inline-flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-sm text-gray-400 font-body">
                 {questions.map((q, idx) => (
                   <div key={q.id} className="flex items-center gap-2">
                     <span className="text-gray-500 font-medium">Вопрос {idx + 1}:</span>

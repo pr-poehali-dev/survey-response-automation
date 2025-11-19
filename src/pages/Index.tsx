@@ -138,9 +138,7 @@ const Index = () => {
             <div className="text-center mb-12">
               <h1 className="font-heading text-4xl sm:text-5xl font-bold text-gray-900 mb-3">Оценить возможность постановки на учет граждан в качестве нуждающихся в жилых помещениях, предоставляемых 
 по договорам социального найма (жилищный учет)</h1>
-              <p className="font-body text-gray-500 text-lg">
-                Вопрос {currentQuestion + 1} из {questions.length}
-              </p>
+              <p className="font-body text-gray-500 text-lg">Ответьте на вопрос ниже, пожалуйста</p>
             </div>
 
             <div className="mb-8">
